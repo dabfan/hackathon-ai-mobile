@@ -1,26 +1,15 @@
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Image } from "react-native";
+import Camera from "../components/Camera";
 
-export default function MainScreen() {
-
-  
-  // const renderPicture = () => {
-  //   return (
-  //     <View>
-  //       <Image
-  //         source={{ uri }}
-  //         contentFit="contain"
-  //         style={{ width: 300, aspectRatio: 1 }}
-  //       />
-  //       <Button onPress={() => setUri(null)} title="Take another picture" />
-  //     </View>
-  //   );
-  // };
-
+export default function MainScreen({navigation}) {
   return (
     <View style={styles.container}>
-      <Text>
-        Test
-      </Text>
+      {/* <Image
+        source={require('../assets/mag-brug.jpeg')} // Replace with your image URL
+        style={styles.backgroundImage}
+        resizeMode="cover" // Ensures the image covers the entire screen
+      /> */}
+      <Camera navigation={navigation} />
     </View>
   );
 }
@@ -28,8 +17,17 @@ export default function MainScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+  },
+  backgroundImage: {
+    position: 'absolute', // Position the image behind other components
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
   },
 });

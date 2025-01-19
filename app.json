@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.with-camera"
+      "bundleIdentifier": "com.amshackathon.brickipedia"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.example.withcamera"
+      "package": "com.amshackathon.brickipedia"
     },
     "web": {
       "favicon": "./assets/favicon.png"

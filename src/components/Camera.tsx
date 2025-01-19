@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View, StyleSheet, Text, Button } from "react-native";
 import {
   CameraType,
@@ -9,13 +9,52 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from "react-redux";
 import Library from "../components/Library";
 import { saveImageMetaData, saveSelectedImage } from '../store/reducers/app';
+import * as Location from 'expo-location';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function Camera({navigation}) {
   const [permission, requestPermission] = useCameraPermissions();
+
+  const [hasLocationAllowed, setHasLocationAllowed] = useState(false);
   const ref = useRef<CameraView>(null);
   const dispatch = useDispatch();
-
+  
   const [facing, setFacing] = useState<CameraType>("back");
+
+  useEffect(() => {
+    async function checkLocationPermission() {
+      // console.log(await ref.getAvailablePictureSizesAsync());
+      
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setHasLocationAllowed(true);
+      }
+    }
+
+    checkLocationPermission();
+  }, []);
+
+  const resizePhoto = async (uri) => {
+    try {
+      // const imageManipulator = useImageManipulator(uri);
+
+      // imageManipulator.resize({ width: 800 });
+      // const rendeered = await imageManipulator.renderAsync();
+      // return rendeered.saveAsync({
+      //   compress: 0.8,
+      //   format: ImageManipulator.SaveFormat.JPEG
+      // });
+      const resized = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 600 } }], // Resize to a width of 600 pixels, keeping the aspect ratio
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      console.log('Resized photo:', resized);
+      return resized;
+    } catch (error) {
+      console.error("Error resizing photo:", error);
+    }
+  };
 
   if (!permission) {
     return null;
@@ -38,8 +77,21 @@ export default function Camera({navigation}) {
       exif: true,
     });
 
-    dispatch(saveImageMetaData(photo?.exif));
-    dispatch(saveSelectedImage(photo?.uri));
+    const extraInfo = photo?.exif || {};
+    if (hasLocationAllowed) {
+      try {
+        let location = await Location.getCurrentPositionAsync({});
+        extraInfo.GPSLatitude = location.coords.latitude;
+        extraInfo.GPSLongitude = location.coords.longitude;
+      } catch (error) {
+        console.log('Could not get coords', error);
+      }
+    }
+
+    const resizedPhoto = await resizePhoto(photo?.uri);
+
+    dispatch(saveImageMetaData(extraInfo));
+    dispatch(saveSelectedImage(resizedPhoto.uri));
     navigation.navigate('Details');
   };
   
@@ -56,6 +108,7 @@ export default function Camera({navigation}) {
       facing={facing}
       mute={true}
       responsiveOrientationWhenOrientationLocked
+      pictureSize={''}
     >
       <View style={styles.shutterContainer}>
         <View style={styles.buttonContainer}>

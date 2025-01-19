@@ -15,9 +15,11 @@ export default function DetailsScreen({ navigation }) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSpeachRunning, setIsSpeachRunning] = useState(false);
+  const [isSpeechEnded, setIsSpeechEnded] = useState(false);
   const messageBuffer = useRef(''); // Buffer to collect fast messages
 
   const uploadImage = async (socket) => {
+    messageBuffer.current = '';
     setMessage('');
     setIsLoading(true);
     Speech.stop();
@@ -97,20 +99,7 @@ export default function DetailsScreen({ navigation }) {
   useEffect(() => {
     const interval = setInterval(() => {
       if (messageBuffer.current) {
-        Speech.speak(messageBuffer.current, {
-          onPause() {
-            setIsSpeachRunning(false);
-          },
-          onResume() {
-            setIsSpeachRunning(true);
-          },
-          onStart() {
-            setIsSpeachRunning(true);
-          },
-          onDone() {
-            setIsSpeachRunning(false);
-          }
-        });
+        speak(messageBuffer.current);
         setMessage((prevMessage) => prevMessage + messageBuffer.current);
         messageBuffer.current = ''; // Clear buffer after appending
       }
@@ -119,10 +108,32 @@ export default function DetailsScreen({ navigation }) {
     return () => clearInterval(interval); // Cleanup interval on unmount
   }, []);
 
+  const speak = (message: string) => {
+    setIsSpeechEnded(false);
+    Speech.speak(message, {
+      onPause() {
+        setIsSpeachRunning(false);
+      },
+      onResume() {
+        setIsSpeachRunning(true);
+      },
+      onStart() {
+        setIsSpeachRunning(true);
+      },
+      onDone() {
+        setIsSpeachRunning(false);
+        setIsSpeechEnded(true);
+      }
+    });
+  }
+
   const handleToggleSpeach = () => {
     if (isSpeachRunning) {
       Speech.pause();
       setIsSpeachRunning(false);
+    } else if (isSpeechEnded) {
+      speak(message);
+      setIsSpeachRunning(true);
     } else {
       Speech.resume();
       setIsSpeachRunning(true);

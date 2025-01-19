@@ -1,31 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system';
 import * as Speech from 'expo-speech';
+import { AddressClient } from '../api/address';
 
 export default function DetailsScreen({ navigation }) {
   const selectedImage = useSelector((state: any) => state.app.selectedImage);
+  const imageMetaData = useSelector((state: any) => state.app.imageMetaData);
 
   const [ws, setWs] = useState(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSpeachRunning, setIsSpeachRunning] = useState(false);
+  const messageBuffer = useRef(''); // Buffer to collect fast messages
 
   const uploadImage = async (socket) => {
+    setMessage('');
     setIsLoading(true);
     Speech.stop();
+
+    let address = null;
+    try {
+      const response = await AddressClient.getAddressData(imageMetaData.GPSLatitude, imageMetaData.GPSLongitude);
+      if (response?.results?.length && response?.results[0].formatted) {
+        address = response?.results[0].formatted;
+      }
+    } catch (addressError) {
+
+    }
     try {
       // Read the image as a base64 string
       const base64Image = await FileSystem.readAsStringAsync(selectedImage, {
         encoding: FileSystem.EncodingType.Base64,
       });
-
+      
       // Send the base64 image over WebSocket
       if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "imageUpload", image: base64Image }));
+        socket.send(JSON.stringify({ type: "imageUpload", image: base64Image, address }));
         console.log('Image sent to WebSocket');
       } else {
         console.warn('WebSocket is not open');
@@ -39,6 +53,7 @@ export default function DetailsScreen({ navigation }) {
     setIsLoading(true);
     // Create a WebSocket connection
     const socket = new WebSocket('ws://nearby-kassia-brickipedia-9f06bb5f.koyeb.app/ws/chat/');
+    // const socket = new WebSocket('ws://192.168.178.226:3030/ws/chat/');
 
     // Event listener for connection open
     socket.onopen = () => {
@@ -48,14 +63,15 @@ export default function DetailsScreen({ navigation }) {
 
     // Event listener for receiving messages
     socket.onmessage = (event) => {
-      console.log('Message from server1:', event.data);
       try {
         const dataObject = JSON.parse(event.data);
-        setMessage(dataObject.message);
+        if (dataObject.message) {
+          setIsLoading(false);
+          messageBuffer.current += dataObject.message;
+        }
       } catch (error) {
         console.log('Unable to parse response', event.data);
       }
-      
     };
 
     // Event listener for connection errors
@@ -79,21 +95,29 @@ export default function DetailsScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (message && message !== 'WebSocket connected!') {
-      setIsLoading(false);
-      Speech.speak(message, {
-        onPause: () => {
-          setIsSpeachRunning(false);
-        },
-        onResume: () => {
-          setIsSpeachRunning(true);
-        },
-        onStart: () => {
-          setIsSpeachRunning(true);
-        }
-      });
-    }
-  }, [message])
+    const interval = setInterval(() => {
+      if (messageBuffer.current) {
+        Speech.speak(messageBuffer.current, {
+          onPause() {
+            setIsSpeachRunning(false);
+          },
+          onResume() {
+            setIsSpeachRunning(true);
+          },
+          onStart() {
+            setIsSpeachRunning(true);
+          },
+          onDone() {
+            setIsSpeachRunning(false);
+          }
+        });
+        setMessage((prevMessage) => prevMessage + messageBuffer.current);
+        messageBuffer.current = ''; // Clear buffer after appending
+      }
+    }, 50);
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, []);
 
   const handleToggleSpeach = () => {
     if (isSpeachRunning) {
@@ -183,7 +207,7 @@ const styles = StyleSheet.create({
     flex: 0.15, // 20% of the screen
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 30,
+    paddingTop: 10,
     paddingBottom: 30,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },

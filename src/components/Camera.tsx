@@ -37,6 +37,7 @@ export default function Camera({navigation}) {
     const photo = await ref.current?.takePictureAsync({
       exif: true,
     });
+
     dispatch(saveImageMetaData(photo?.exif));
     dispatch(saveSelectedImage(photo?.uri));
     navigation.navigate('Details');

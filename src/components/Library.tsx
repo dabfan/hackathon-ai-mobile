@@ -19,8 +19,13 @@ export default function Library({navigation}) {
     
 
     if (!result.canceled) {
-      console.log(result.assets[0].exif);
-      dispatch(saveImageMetaData(result.assets[0].exif));
+      if (result.assets[0].exif) {
+        try {
+          dispatch(saveImageMetaData(result.assets[0].exif));
+        } catch (error) {
+          
+        }
+      }
       dispatch(saveSelectedImage(result.assets[0].uri));
       navigation.navigate('Details');
     }
